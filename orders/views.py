@@ -56,11 +56,11 @@ class OrderListCreateView(APIView):
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         if page is not None:
-            serializer = OrderSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            results = [OrderService.get_order_snapshot(o) for o in page]
+            return paginator.get_paginated_response(results)
 
-        serializer = OrderSerializer(qs, many=True)
-        return Response(serializer.data)
+        results = [OrderService.get_order_snapshot(o) for o in qs]
+        return Response(results)
 
 
 class OrderDetailUpdateView(APIView):
@@ -76,7 +76,7 @@ class OrderDetailUpdateView(APIView):
             )
         except Order.DoesNotExist:
             raise ResourceNotFoundError(f"Order '{order_number}' not found.")
-        return Response(OrderSerializer(order).data)
+        return Response(OrderService.get_order_snapshot(order))
 
     def put(self, request, order_number):
         data = request.data

@@ -44,32 +44,61 @@ This document records the architectural decisions, database schemas, integrity c
 * **Unique Constraint `unique_order_item_per_product` (`orders/models.py:74-77`)**: Guarantees at the database level that no order contains duplicate lines for the same product.
 
 ### 1.7 OrderNumberCounter Model (`orders/models.py:85-99`)
-* **`date` + `last_seq`**: Tracks daily sequence generation. Locked inside an atomic transaction using `select_for_update()` (`orders/services.py:29-43`) to guarantee gap-safe, collision-free numbering across parallel threads.
+* **`date` + `last_seq`**: Tracks daily sequence generation. Atomic PostgreSQL `INSERT ... ON CONFLICT DO UPDATE RETURNING` (`orders/services.py:53-73`) guarantees gap-safe, collision-free numbering across parallel threads.
 
 ### 1.8 IdempotencyKey Model (`orders/models.py:101-124`)
 * **`key`, `request_hash`, `order`, `response_snapshot`**: Caches the response of `POST /api/orders/`. Replaying the same request returns the original cached response; replaying the same key with a different payload raises `409 IDEMPOTENCY_CONFLICT`.
 
 ---
 
-## 2. API Design & Business Rules
+## 2. Order Engine & Business Logic (Phase 2)
 
-### 2.1 Centralized Exception Architecture (`core/exceptions.py:12-140`)
-* Standard error envelope enforced by one central DRF handler:
-  ```json
-  {"error": {"code": "...", "message": "...", "details": []}}
+### 2.1 State Machine & Central Transition Table (`orders/services.py:27-43, 260-267`)
+* Defined in a single declarative transition dictionary (`ORDER_TRANSITIONS`):
+  * `confirm`: `DRAFT -> CONFIRMED`
+  * `dispatch`: `CONFIRMED -> DISPATCHED`
+  * `deliver`: `DISPATCHED -> DELIVERED`
+  * `cancel`: `DRAFT -> CANCELLED` and `CONFIRMED -> CANCELLED`
+* Validated centrally via `_validate_transition(order, action)` under `select_for_update()` on the order row. Any illegal transition raises `409 INVALID_TRANSITION`.
+* `PUT /api/orders/{order_number}/` verifies `order.status == DRAFT`; non-draft orders immediately raise `409 ORDER_LOCKED`.
+
+### 2.2 Concurrency & Deadlock-Free Stock Deduction (`orders/services.py:269-340`)
+* **Consistent Row-Lock Ordering**: In `confirm_order()`, inventory rows are locked using `Inventory.objects.select_for_update().filter(product_id__in=product_ids).order_by("product_id")`. Sorting by product ID eliminates database deadlocks when concurrent multi-line orders touch overlapping sets of SKUs.
+* **All-or-Nothing Verification**: If any line item has `quantity > available`, the transaction makes no modifications and raises `409 INSUFFICIENT_STOCK`.
+  * `details`: Complete list of every short SKU with `[{"sku": "...", "requested": n, "available": m}]`.
+  * `message`: One complete sentence per short item: `"Insufficient stock for <product name>. Available: 5, Requested: 10."`.
+* **Atomic Deduction & Price Lock**: On confirmation, stock is decremented and `unit_price` is permanently locked at the product's current catalog price. Future changes to catalog product prices never affect confirmed orders.
+
+### 2.3 Cancel Order & Stock Restoration (`orders/services.py:365-402`)
+* When an order is in `CONFIRMED` status with `stock_deducted=True`, calling `cancel_order()` locks the order row, restores inventory in consistent product ID order, and clears `stock_deducted=False` within a single atomic transaction.
+* Two concurrent cancel calls on the same order will have the second call see `status == CANCELLED` and immediately reject with `409 INVALID_TRANSITION`, ensuring inventory is restored **exactly once**.
+* `DISPATCHED` and `DELIVERED` orders cannot be cancelled (`409 INVALID_TRANSITION`).
+
+### 2.4 Financial Precision & GST Rounding (`orders/services.py:45-56`)
+* Implemented exclusively using `decimal.Decimal` and `ROUND_HALF_UP`:
+  * `line_subtotal = unit_price * quantity`
+  * `line_tax = (line_subtotal * Decimal("0.18")).quantize(Decimal("0.01"), ROUND_HALF_UP)`
+  * `line_total = line_subtotal + line_tax`
+* Tax is rounded **per line item**, and order totals (`subtotal`, `tax_total`, `grand_total`) are exact sums of the line amounts to the paisa.
+* Prevents cumulative rounding drift and passes half-up boundary tests (e.g. `subtotal=0.05 -> tax=0.01`, `0.25 -> tax=0.05`, `0.75 -> tax=0.14`).
+
+### 2.5 Gap-Safe Order Numbers (`orders/services.py:53-73`)
+* Format: `ORD-YYYYMMDD-NNNN` where date is evaluated in `Asia/Kolkata` (`zoneinfo.ZoneInfo("Asia/Kolkata")`).
+* Uses native PostgreSQL atomic UPSERT:
+  ```sql
+  INSERT INTO orders_ordernumbercounter ("date", "last_seq")
+  VALUES (%s, 1)
+  ON CONFLICT ("date")
+  DO UPDATE SET "last_seq" = orders_ordernumbercounter."last_seq" + 1
+  RETURNING "last_seq";
   ```
-* Dedicated domain exceptions (`DuplicateError`, `InsufficientStockError`, `InvalidTransitionError`, `OrderLockedError`, `IdempotencyConflictError`, `ResourceNotFoundError`, `ValidationError`).
-* Fallback catch-all route (`dealerdesk/urls.py:10`, `core/views.py:9-21`) guarantees unknown routes and malformed JSON payloads conform to the exact JSON error contract even during framework-level errors.
+* Guaranteed collision-free and gap-safe under 50 simultaneous parallel threads.
 
-### 2.2 Financial Calculation & Rounding (`orders/services.py:45-56`)
-* Tax computed strictly per line item: `line_tax = (line_subtotal * Decimal("0.18")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)`.
-* Order total is the exact sum of line totals, preventing rounding drift.
-
-### 2.3 Concurrency & Stock Locks (`orders/services.py:180-230`)
-* Stock deduction during order confirmation uses `Inventory.objects.select_for_update().filter(...).order_by("id")`.
-* Sorting by product id eliminates database deadlocks when concurrent transactions lock overlapping items.
-* All-or-nothing confirmation: If any line item is short, transaction rolls back and returns `409 INSUFFICIENT_STOCK` detailing all short lines.
-
-### 2.4 Idempotent Data Seeding (`core/management/commands/seed_data.py:12-85`)
-* Uses `update_or_create` for products and dealers, and `get_or_create` for inventory records.
-* Guarantees running `python manage.py seed_data` multiple times never duplicates records and never resets stock quantities modified by operations.
+### 2.6 Multi-Threaded Idempotency Engine (`orders/services.py:145-215`)
+* Computes SHA-256 hash of canonicalized JSON request payload.
+* Before checking or creating idempotency records, takes a PostgreSQL transaction-level advisory lock on the key:
+  ```sql
+  SELECT pg_advisory_xact_lock(hashtext(%s));
+  ```
+* Serializes concurrent duplicate requests. The first thread creates the order and idempotency record; subsequent concurrent threads cleanly read and return the original snapshot with status `201`.
+* Reusing the same `Idempotency-Key` with a different request payload immediately raises `409 IDEMPOTENCY_CONFLICT`.
