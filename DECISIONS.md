@@ -4,6 +4,106 @@ This document records the architectural decisions, database schemas, integrity c
 
 ---
 
+## Track Q&A — Django Track
+
+### Q1: Where overselling is prevented and what happens without it
+* **Code Citation**: `catalog/models.py:63-66` and `orders/services.py:270-310`.
+* **Mechanism**: Overselling is prevented via a PostgreSQL engine check constraint `CHECK (quantity >= 0)` on `Inventory.quantity` (`catalog/models.py:63-66`), coupled with strict `select_for_update()` row locking ordered by `product_id` during confirmation (`orders/services.py:270-310`). All line items are verified atomically before decrementing.
+* **Without it**: Parallel checkout requests for the same SKU would read stale stock in a race condition, deduct beyond available units, and cause negative physical inventory and phantom order fulfillment.
+
+### Q2: GST calculation and rounding, float and default-rounding pitfalls
+* **Code Citation**: `orders/services.py:45-60`.
+* **Pitfalls**: Binary floating-point arithmetic introduces IEEE 754 precision leakage (`0.1 + 0.2 = 0.30000000000000004`). Python's default `round()` uses Banker's rounding (round-half-to-even), which rounds `0.005` to `0.00` and violates Indian GST statutory rules. Computing tax on invoice subtotals causes line-sum discrepancy drift.
+* **Solution**: Exact `decimal.Decimal` with `ROUND_HALF_UP` computed per line item (`line_subtotal * 0.18`) quantized to `Decimal("0.01")`. Subtotal and tax totals are sums of line items to the paisa.
+
+### Q3: Unique order numbers and idempotency under simultaneous duplicates
+* **Code Citation**: `orders/services.py:62-86` and `orders/services.py:183-205`.
+* **Order Numbers**: Generated atomically via PostgreSQL `INSERT ... ON CONFLICT ("date") DO UPDATE SET "last_seq" = orders_ordernumbercounter."last_seq" + 1 RETURNING "last_seq"` in `Asia/Kolkata` timezone. Collision-free and gap-safe under concurrency.
+* **Idempotency**: Requests with `Idempotency-Key` acquire a transaction advisory lock (`SELECT pg_advisory_xact_lock(hashtext(%s))`). The second concurrent request waits, detects the existing record, verifies the SHA-256 payload hash, and returns the cached snapshot without duplicate execution. A mismatched payload immediately raises `409 IDEMPOTENCY_CONFLICT`.
+
+### Q4: Schema with every FK on_delete and reasons
+* **Code Citation**: `catalog/models.py:53-57, 77-81`, `orders/models.py:22-26, 52-56, 57-61`, `assistant/models.py:12`.
+* `Inventory.product` (`models.PROTECT`): Preserves stock tracking; a catalog product cannot be deleted if physical inventory exists.
+* `InventoryAdjustment.product` (`models.CASCADE`): Historical adjustment audit logs cascade if a test product is permanently expunged.
+* `Order.dealer` (`models.PROTECT`): Protects statutory financial logs and GST records; dealers with purchase orders cannot be removed.
+* `OrderItem.order` (`models.CASCADE`): Line items belong to the order lifecycle and cascade on draft deletion.
+* `OrderItem.product` (`models.PROTECT`): Products that have appeared on purchase orders cannot be deleted from the database.
+* `ConversationMessage.dealer` (`models.CASCADE`): Session chat history cascades upon dealer account removal.
+
+### Q5: Where transitions are enforced and why cancel restores exactly once
+* **Code Citation**: `orders/services.py:27-41`, `orders/services.py:260-267`, and `orders/services.py:365-402`.
+* **Enforcement**: Centrally in `_validate_transition(order, action)` under `select_for_update()` order locking against `ORDER_TRANSITIONS`. Unauthorized transitions return `409 INVALID_TRANSITION`.
+* **Cancel Restores Exactly Once**: In `cancel_order()`, inventory restoration only triggers if `status == CONFIRMED` and `stock_deducted=True`. Stock is restored in sorted order and `stock_deducted` is cleared to `False` in the same transaction. A duplicate cancel call reads `status == CANCELLED`, which is absent from the transition table, immediately rejecting with `409 INVALID_TRANSITION` without touching stock.
+
+### Q6: Sync handling of rate limits, failures, duplicates and all-or-nothing
+* **Code Citation**: `supplier/client.py:65-115` and `supplier/sync_service.py:124-175`.
+* **Rate Limits (429)**: Parses `Retry-After` header and sleeps the exact required duration, counting against the 5-attempt limit.
+* **Failures (500/502/503/timeout)**: Short exponential backoff (0.5s, 1s, 2s, 4s), max 5 total attempts. 401 or exhausted retries raises `SupplierUnavailableError` (`502 SUPPLIER_UNAVAILABLE`).
+* **Duplicates**: Multiple items with the same SKU across pages are resolved by keeping the record with the latest ISO 8601 `updated_at`.
+* **All-or-Nothing**: Ingestion loads the complete feed into memory first. Any failure aborts with zero DB writes. All mutations run inside `transaction.atomic()`.
+
+### Q7: Created/updated/unchanged logic and why run two changes nothing
+* **Code Citation**: `supplier/sync_service.py:130-175`.
+* **Logic**: Compares feed attributes against existing DB fields. If SKU is missing, marked `created`. If any attribute differs, marked `updated`. If attributes match identically, marked `unchanged`.
+* **Run Two Changes Nothing**: Since DB records already match the feed values, the second run finds zero differences, returning `{"created": 0, "updated": 0, "unchanged": N, "rejected": []}` and executing zero database write statements.
+
+### Q8: Weakest part and what to do with two more days
+* **Weakest Part**: Synchronous supplier sync blocks the HTTP request worker while fetching multi-page external feeds with exponential backoff.
+* **Two-More-Days Plan**: Convert sync to an asynchronous Celery background task with task ID polling (`POST /api/sync/supplier/` returns 202 with job ID), add Redis distributed locks to serialize parallel sync triggers, and implement dead-letter tables for rejected malformed supplier records.
+
+---
+
+## Track Q&A — AI/ML Track
+
+### Q1: Schema
+* **Code Citation**: `catalog/models.py:7-112`, `orders/models.py:16-124`, `assistant/models.py:6-26`.
+* **Entities**: `Product`, `Inventory`, `InventoryAdjustment`, `Dealer`, `Order`, `OrderItem`, `IdempotencyKey`, and `ConversationMessage` (`session_id, dealer_id, role, content, tool_calls, created_at`).
+
+### Q2: Retrieval design and failure cases
+* **Code Citation**: `assistant/retrieval.py:85-215`.
+* **Design**: Dynamic hybrid retrieval combining lexical BM25 term frequency with character 3-gram (trigram) Jaccard similarity fused via Reciprocal Rank Fusion ($\text{RRF}, k=60$). Excludes raw product descriptions to eliminate prompt injection surface.
+* **Failure Cases**:
+  1. *Universal fitment parts*: Match all vehicle queries, resolved by boosting vehicle-specific fitments ($+2.0$) over universal parts ($+0.5$).
+  2. *Vague queries*: Queries lacking vehicle specifications (e.g. "brake pads") prompt clarifying questions rather than guessing.
+  3. *Out-of-catalog fitments*: Incompatible vehicle searches return empty sets; assistant truthfully states no fitment exists.
+
+### Q3: The tool-calling loop with code citations
+* **Code Citation**: `assistant/agent.py:100-380` and `assistant/tools.py:75-175`.
+* **Loop**: `DealerAssistantAgent.chat()` executes a multi-turn tool-calling loop up to `MAX_TOOL_ITERATIONS = 5`. It sends conversation history and `TOOL_DEFINITIONS` to the LLM (`assistant/agent.py:110-180`). If tool calls are returned, `execute_tool()` (`assistant/tools.py:75-175`) executes `search_parts`, `check_stock`, or `create_draft_order`, updating `turn_context`. Results are sanitized and sent back to the model until a final text reply is generated.
+
+### Q4: How prices and stock are grounded
+* **Code Citation**: `assistant/agent.py:220-275` and `assistant/tools.py:90-140`.
+* **Grounding**: Live prices and stock are retrieved from the database during tool execution in the CURRENT turn and captured in `turn_context["turn_prices"]` and `turn_context["turn_stocks"]`. The system prompt forbids citing memory from prior turns. Post-processing validates all cited numbers against `turn_context` and extracts only verified DB SKUs into `cited_skus`.
+
+### Q5: Prompt-injection defence and its limits
+* **Code Citation**: `assistant/agent.py:50-75` and `assistant/agent.py:230-260`.
+* **Defenses**: System prompt sets rigid boundaries and untrusted data tagging; input sanitizer strips instruction-like text (`ignore previous instructions`, `apply discount`, `promo code`); output sanitizer rewrites unauthorized confirmation claims and strips promo codes.
+* **Limits**: Steganographic, base64-encoded, or recursive semantic jailbreaks can bypass static regex filters. However, system architecture enforces defense-in-depth: **no confirmation tool exists in the schema**, so orders can never be confirmed by the assistant.
+
+### Q6: Forecasting approach, validation and the exact anti-leakage line
+* **Code Citation**: `ml/train.py:100-195` and `ml/validate.py:114-118`.
+* **Approach**: Direct multi-horizon `HistGradientBoostingRegressor` ($h \in \{1, 2, 3, 4\}$) with log1p-transformed target, autoregressive lags, strictly shifted rolling stats, promo flags, and Diwali calendar distance features.
+* **Exact Anti-Leakage Line**: **`ml/validate.py:116`**:
+  ```python
+  assert train["week_start"].max() < origin, f"Leakage detected: train max week {train['week_start'].max()} >= origin {origin}"
+  ```
+
+### Q7: Worst SKUs, and handling of promos, Diwali, rare and new SKUs
+* **Code Citation**: `ml/train.py:145-195` and `ml/validate.py:175-195`.
+* **Worst SKUs**: `ELE-1006` ($\text{CV}=1.47$, $60\%$ zeros) and `GRP-1043` ($\text{CV}=1.33$, $55\%$ zeros) due to intermittent lumpy demand; `BRK-1019` due to promo spikes ($359$ vs $60$); `CHN-1006` / `BRK-1105` due to short 6-week history.
+* **Handling**:
+  - *Rare SKUs*: Blended with Syntetos-Boylan Approximation (SBA) to suppress over-prediction.
+  - *New SKUs*: Shrunk toward recent 4-week mean ($85\%$ mean $+ 15\%$ booster).
+  - *Promotions*: Known future promo flags applied as explicit feature; captures $+49.1\%$ WAPE improvement on promo weeks.
+  - *Diwali*: Indexed by `weeks_to_diwali` based on festival calendar, blended with seasonal naive during pre-Diwali surge.
+
+### Q8: Weakest part and two-more-days plan
+* **Weakest Part**: Fixed static shrinkage weights between SBA, seasonal naive, and gradient boosting across SKU clusters.
+* **Two-More-Days Plan**: Implement hierarchical Bayesian reconciliation (MinT) or conformal prediction intervals to produce probabilistic uncertainty bands (P10, P50, P90) for lead-time demand, allowing dynamic service-level tuning ($95\%$ vs $99\%$).
+
+---
+
+
 ## 1. Domain Models & Relational Integrity
 
 ### 1.1 Product Model (`catalog/models.py:7-46`)
