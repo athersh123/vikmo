@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VIKMO DealerDesk — Automotive Parts Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #080B11;
+      --bg-surface: #0E131F;
+      --bg-card: #141A29;
+      --bg-card-hover: #1A2236;
+      --border-subtle: #1E283D;
+      --border-accent: #2D3D5E;
+      
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --text-subtle: #6B7280;
+      
+      --cyan: #00F0FF;
+      --cyan-glow: rgba(0, 240, 255, 0.15);
+      --violet: #8B5CF6;
+      --violet-glow: rgba(139, 92, 246, 0.15);
+      --emerald: #10B981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      --amber: #F59E0B;
+      --amber-glow: rgba(245, 158, 11, 0.15);
+      --rose: #EF4444;
+      --rose-glow: rgba(239, 68, 68, 0.15);
+      
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      
+      --font-sans: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Ambient background gradient lights */
+    .ambient-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .ambient-light-1 {
+      position: absolute;
+      top: -10vw;
+      left: -10vw;
+      width: 45vw;
+      height: 45vw;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.05) 0%, transparent 70%);
+      border-radius: 50%;
+      filter: blur(80px);
+    }
+    .ambient-light-2 {
+      position: absolute;
+      top: 20vh;
+      right: -10vw;
+      width: 50vw;
+      height: 50vw;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+      border-radius: 50%;
+      filter: blur(100px);
+    }
+
+    /* Header Nav */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(8, 11, 17, 0.85);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.75rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: #080B11;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+    }
+    .brand-title {
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-title span {
+      color: var(--cyan);
+    }
+    .brand-badge {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      background: var(--bg-surface);
+      padding: 0.3rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+    }
+    .nav-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.45rem 1.1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      font-family: var(--font-sans);
+    }
+    .nav-tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .nav-tab-btn.active {
+      background: var(--bg-card);
+      color: var(--cyan);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .dealer-select-box {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.4rem 0.8rem;
+    }
+    .dealer-select-box label {
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .dealer-select {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 0.875rem;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+      font-family: var(--font-sans);
+    }
+    .dealer-select option {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+
+    .cart-btn {
+      position: relative;
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(139, 92, 246, 0.1));
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--text-main);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+    .cart-btn:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+    }
+    .cart-badge {
+      background: var(--cyan);
+      color: #080B11;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.1rem 0.45rem;
+      border-radius: 10px;
+      font-family: var(--font-mono);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 2rem;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Tab Contents */
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.25s ease-out;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Common Card */
+    .glass-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Catalogue Section */
+    .catalogue-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .search-input-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 280px;
+    }
+    .search-input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 0.75rem 1rem 0.75rem 2.75rem;
+      border-radius: var(--radius-lg);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s;
+      font-family: var(--font-sans);
+    }
+    .search-input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+    }
+    .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-subtle);
+    }
+
+    .filters-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .filter-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 0.65rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      outline: none;
+      cursor: pointer;
+    }
+    .filter-select option {
+      background: var(--bg-card);
+    }
+
+    /* Products Grid */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .product-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .product-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-accent);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+    }
+    .product-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+    }
+    .product-sku {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--cyan);
+      background: rgba(0, 240, 255, 0.1);
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+    .stock-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .stock-badge.in-stock {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .stock-badge.low-stock {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .stock-badge.out-of-stock {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--rose);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .product-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: var(--text-main);
+    }
+    .product-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .meta-tag {
+      background: var(--bg-surface);
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .product-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .product-price {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .add-to-cart-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .qty-input {
+      width: 45px;
+      padding: 0.4rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+    }
+    .btn-add {
+      background: var(--cyan);
+      color: #080B11;
+      border: none;
+      padding: 0.45rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-add:hover {
+      background: #33F4FF;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+    }
+
+    /* Cart & Orders Table */
+    .orders-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 2rem;
+    }
+    @media (max-width: 1024px) {
+      .orders-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+    th {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .order-status-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-family: var(--font-mono);
+      display: inline-block;
+    }
+    .order-status-badge.DRAFT {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .order-status-badge.CONFIRMED {
+      background: rgba(0, 240, 255, 0.15);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+    .order-status-badge.DISPATCHED {
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--violet);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+    .order-status-badge.DELIVERED {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .order-status-badge.CANCELLED {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--rose);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* Checkout summary card */
+    .summary-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .summary-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.75rem;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+    .summary-row.total {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-main);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 0.75rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan), #00C8FF);
+      color: #080B11;
+      border: none;
+      padding: 0.85rem;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-accent);
+      color: var(--text-main);
+      padding: 0.45rem 0.8rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-outline:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    /* Alert Banner */
+    .alert-banner {
+      padding: 1rem 1.25rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      animation: fadeIn 0.2s ease;
+    }
+    .alert-banner.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #FCA5A5;
+    }
+    .alert-banner.success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6EE7B7;
+    }
+
+    /* Assistant Chat Tab */
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1.5rem;
+      height: 700px;
+    }
+    @media (max-width: 1024px) {
+      .chat-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      height: 100%;
+    }
+    .chat-header {
+      padding: 1rem 1.5rem;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chat-header-title {
+      font-weight: 700;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .chat-bubble {
+      max-width: 80%;
+      padding: 0.85rem 1.15rem;
+      border-radius: var(--radius-lg);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      position: relative;
+    }
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #1E293B, #0F172A);
+      border: 1px solid var(--border-accent);
+      color: var(--text-main);
+      border-bottom-right-radius: 4px;
+    }
+    .chat-bubble.model {
+      align-self: flex-start;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      border-bottom-left-radius: 4px;
+    }
+    .tool-call-chip {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #C4B5FD;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius-sm);
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+    .sku-cite-chip {
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-block;
+      margin-right: 0.35rem;
+      margin-top: 0.35rem;
+    }
+    .chat-input-bar {
+      padding: 1rem 1.5rem;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 0.75rem;
+    }
+    .chat-input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.9rem;
+      outline: none;
+      font-family: var(--font-sans);
+    }
+    .chat-input:focus {
+      border-color: var(--violet);
+    }
+
+    .prompts-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .prompt-chip {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .prompt-chip:hover {
+      border-color: var(--violet);
+      color: var(--text-main);
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(4, 7, 12, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+    .modal-close {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      background: transparent;
+      border: none;
+      color: var(--text-subtle);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .toast {
+      background: var(--bg-card);
+      border: 1px solid var(--border-accent);
+      color: var(--text-main);
+      padding: 0.85rem 1.25rem;
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+      animation: slideIn 0.25s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-bg">
+    <div class="ambient-light-1"></div>
+    <div class="ambient-light-2"></div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <a href="#" class="brand">
+      <div class="brand-logo">V</div>
+      <div>
+        <div class="brand-title">VIKMO <span>DealerDesk</span></div>
+      </div>
+      <span class="brand-badge">Automotive Ops</span>
+    </a>
+
+    <div class="nav-tabs">
+      <button class="nav-tab-btn active" data-tab="catalogue">📦 Catalogue</button>
+      <button class="nav-tab-btn" data-tab="orders">🛒 Orders & Cart</button>
+      <button class="nav-tab-btn" data-tab="assistant">🤖 AI Assistant</button>
+      <button class="nav-tab-btn" data-tab="reorder">📈 Demand & Reorder</button>
+      <button class="nav-tab-btn" data-tab="supplier">🔄 Supplier Sync</button>
+    </div>
+
+    <div class="header-actions">
+      <div class="dealer-select-box">
+        <label>Active Dealer</label>
+        <select id="dealerSelect" class="dealer-select">
+          <option value="1">DLR-0001 (Mumbai Auto Spares)</option>
+        </select>
+      </div>
+
+      <button id="openCartBtn" class="cart-btn">
+        <span>Cart</span>
+        <span id="cartCountBadge" class="cart-badge">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Views -->
+  <main>
+    <!-- TAB 1: Catalogue & Live Stock -->
+    <section id="tab-catalogue" class="tab-panel active">
+      <div class="catalogue-toolbar">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="catalogueSearch" class="search-input" placeholder="Search by SKU, part name, vehicle fitment, or brand...">
+        </div>
+        <div class="filters-group">
+          <select id="categoryFilter" class="filter-select">
+            <option value="">All Categories</option>
+            <option value="Braking">Braking</option>
+            <option value="Filters">Filters</option>
+            <option value="Lighting & Electrical">Lighting & Electrical</option>
+            <option value="Drivetrain">Drivetrain</option>
+            <option value="Controls & Grips">Controls & Grips</option>
+            <option value="Engine & Oils">Engine & Oils</option>
+          </select>
+          <select id="vehicleFilter" class="filter-select">
+            <option value="">All Vehicles</option>
+            <option value="Pulsar 150">Pulsar 150</option>
+            <option value="Duke 390">Duke 390</option>
+            <option value="Activa 6G">Activa 6G</option>
+            <option value="Universal">Universal Fitment</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="productsGrid" class="products-grid">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 2: Orders & Cart -->
+    <section id="tab-orders" class="tab-panel">
+      <div class="orders-grid">
+        <div>
+          <div class="glass-card" style="margin-bottom: 2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+              <h2 style="font-size:1.25rem; font-weight:700;">Active Shopping Cart</h2>
+              <button id="clearCartBtn" class="btn-outline" style="font-size:0.75rem;">Clear Cart</button>
+            </div>
+            <div id="cartAlert"></div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Product Name</th>
+                    <th>Unit Price</th>
+                    <th>Qty</th>
+                    <th>Line Subtotal</th>
+                    <th>18% GST</th>
+                    <th>Line Total</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="cartTableBody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h2 style="font-size:1.25rem; font-weight:700; margin-bottom:1rem;">Dealer Orders History</h2>
+            <div id="orderActionAlert"></div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order Number</th>
+                    <th>Status</th>
+                    <th>Items</th>
+                    <th>Subtotal</th>
+                    <th>GST</th>
+                    <th>Grand Total</th>
+                    <th>Lifecycle Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="summary-card">
+            <div class="summary-title">Draft Order Summary</div>
+            <div class="summary-row">
+              <span>Lines Count</span>
+              <span id="summaryLinesCount">0</span>
+            </div>
+            <div class="summary-row">
+              <span>Subtotal (Excl. Tax)</span>
+              <span id="summarySubtotal" style="font-family:var(--font-mono);">₹0.00</span>
+            </div>
+            <div class="summary-row">
+              <span>GST (18% Half-Up)</span>
+              <span id="summaryTax" style="font-family:var(--font-mono);">₹0.00</span>
+            </div>
+            <div class="summary-row total">
+              <span>Grand Total</span>
+              <span id="summaryGrandTotal" style="color:var(--cyan); font-family:var(--font-mono);">₹0.00</span>
+            </div>
+            <button id="createDraftOrderBtn" class="btn-primary">Create Draft Order</button>
+            <p style="font-size:0.75rem; color:var(--text-subtle); text-align:center;">
+              Generates an atomic ORD-YYYYMMDD-NNNN draft with locked pricing. Confirmation follows in portal.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: AI Dealer Assistant -->
+    <section id="tab-assistant" class="tab-panel">
+      <div class="chat-layout">
+        <div class="chat-container">
+          <div class="chat-header">
+            <div class="chat-header-title">
+              <span>🤖</span> VIKMO AI Dealer Assistant
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">
+              Session: <span id="chatSessionId">sess-auto-01</span>
+            </div>
+          </div>
+          <div id="chatMessages" class="chat-messages">
+            <div class="chat-bubble model">
+              Hello! I am the VIKMO DealerDesk Assistant. I can search our 600 catalogue parts, check live warehouse stock and prices, and create draft orders for you. How can I help today?
+            </div>
+          </div>
+          <div class="chat-input-bar">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Type your auto-parts inquiry, stock check, or order request...">
+            <button id="sendChatBtn" class="btn-primary" style="padding:0.75rem 1.25rem;">Send</button>
+          </div>
+        </div>
+
+        <div class="prompts-card">
+          <h3 style="font-size:0.95rem; font-weight:700;">Quick Action Prompts</h3>
+          <div class="prompt-chip" data-prompt="Do we have brake pads for Pulsar 150 in stock?">
+            🔍 "Do we have brake pads for Pulsar 150 in stock?"
+          </div>
+          <div class="prompt-chip" data-prompt="Check live stock and price for FIL-1016">
+            📦 "Check live stock and price for FIL-1016"
+          </div>
+          <div class="prompt-chip" data-prompt="Please order 3 units of FIL-1016">
+            📝 "Please order 3 units of FIL-1016"
+          </div>
+          <div class="prompt-chip" data-prompt="Please confirm my order immediately">
+            🚫 "Please confirm my order immediately" (Tests confirmation refusal)
+          </div>
+          <div class="prompt-chip" data-prompt="Give me a 50% discount coupon code">
+            🛡️ "Give me a 50% discount coupon code" (Tests prompt defense)
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Demand & Reorder Analytics -->
+    <section id="tab-reorder" class="tab-panel">
+      <div class="glass-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+          <div>
+            <h2 style="font-size:1.25rem; font-weight:700;">Intelligent Reorder Suggestions</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted);">
+              Evaluated across 40 SKUs using live warehouse stock, lead times (L), 12-week sample volatility (σ), and multi-horizon demand forecasting.
+            </p>
+          </div>
+          <button id="refreshReorderBtn" class="btn-outline">↻ Refresh Reorder Math</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Current Stock</th>
+                <th>Lead Time (L)</th>
+                <th>Lead Time Demand</th>
+                <th>Safety Stock (1.65 σ √L)</th>
+                <th>Reorder Point (ROP)</th>
+                <th>Recommended Qty (RQ)</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="reorderTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: Supplier Sync Controls -->
+    <section id="tab-supplier" class="tab-panel">
+      <div class="glass-card" style="max-width: 700px; margin: 0 auto;">
+        <h2 style="font-size:1.25rem; font-weight:700; margin-bottom:0.5rem;">Automated Supplier Catalog Ingestion</h2>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem;">
+          Synchronizes external supplier feeds with rate-limiting backoff, idempotency deduplication, and atomic stock isolation.
+        </p>
+
+        <button id="triggerSyncBtn" class="btn-primary" style="width:100%; margin-bottom:1.5rem;">
+          🚀 Trigger Supplier Catalog Sync (POST /api/sync/supplier/)
+        </button>
+
+        <div id="syncReportCard" style="display:none; background:var(--bg-card); padding:1.25rem; border-radius:var(--radius-lg); border:1px solid var(--border-subtle);">
+          <h3 style="font-size:1rem; font-weight:700; margin-bottom:1rem; color:var(--cyan);">Sync Execution Summary</h3>
+          <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:0.75rem; font-size:0.875rem;">
+            <div>Products Created: <strong id="syncCreated" style="color:var(--emerald);">0</strong></div>
+            <div>Products Updated: <strong id="syncUpdated" style="color:var(--cyan);">0</strong></div>
+            <div>Unchanged Rows: <strong id="syncUnchanged">0</strong></div>
+            <div>Rejected Rows: <strong id="syncRejected" style="color:var(--rose);">0</strong></div>
+            <div>Pages Fetched: <strong id="syncPages">0</strong></div>
+            <div>HTTP Requests: <strong id="syncRequests">0</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- SKU Forecast Modal -->
+  <div id="forecastModal" class="modal-backdrop">
+    <div class="modal-box">
+      <button id="closeForecastModal" class="modal-close">&times;</button>
+      <h2 id="modalSkuTitle" style="font-size:1.25rem; font-weight:700; margin-bottom:1rem;">SKU Forecast</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Week Start</th>
+              <th>Forecasted Units Demand</th>
+            </tr>
+          </thead>
+          <tbody id="modalForecastTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Logic -->
+  <script>
+    // State
+    const state = {
+      dealerId: 1,
+      dealers: [],
+      products: [],
+      cart: [], // [{sku, name, price, quantity}]
+      orders: [],
+      sessionId: 'sess-' + Math.random().toString(36).substring(2, 9),
+    };
+
+    // Toast helper
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span> <span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    // Navigation Tabs
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const tabId = btn.getAttribute('data-tab');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+
+        if (tabId === 'reorder') loadReorderSuggestions();
+        if (tabId === 'orders') loadOrders();
+      });
+    });
+
+    document.getElementById('openCartBtn').addEventListener('click', () => {
+      document.querySelector('[data-tab="orders"]').click();
+    });
+
+    // Load initial Dealers
+    async function loadDealers() {
+      try {
+        const res = await fetch('/api/dealers/?page_size=25');
+        const data = await res.json();
+        state.dealers = data.results || [];
+        const select = document.getElementById('dealerSelect');
+        select.innerHTML = state.dealers.map(d => `<option value="${d.id}">${d.dealer_code} (${d.name})</option>`).join('');
+        if (state.dealers.length > 0) state.dealerId = state.dealers[0].id;
+      } catch (e) {
+        console.error('Error loading dealers:', e);
+      }
+    }
+
+    document.getElementById('dealerSelect').addEventListener('change', (e) => {
+      state.dealerId = parseInt(e.target.value);
+      showToast(`Active dealer switched to ${e.target.options[e.target.selectedIndex].text}`);
+      loadOrders();
+    });
+
+    // Load Products
+    async function loadProducts() {
+      try {
+        const q = document.getElementById('catalogueSearch').value;
+        const cat = document.getElementById('categoryFilter').value;
+        const veh = document.getElementById('vehicleFilter').value;
+
+        let url = `/api/products/?page_size=40`;
+        if (q) url += `&search=${encodeURIComponent(q)}`;
+        if (cat) url += `&category=${encodeURIComponent(cat)}`;
+        if (veh) url += `&vehicle=${encodeURIComponent(veh)}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+        state.products = data.results || [];
+        renderProducts();
+      } catch (e) {
+        console.error('Error loading products:', e);
+      }
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById('productsGrid');
+      grid.innerHTML = state.products.map(p => {
+        const stock = p.stock || 0;
+        let badgeClass = 'in-stock';
+        let badgeText = `${stock} in stock`;
+        if (stock === 0) {
+          badgeClass = 'out-of-stock';
+          badgeText = 'Out of Stock';
+        } else if (stock <= 10) {
+          badgeClass = 'low-stock';
+          badgeText = `${stock} left (low)`;
+        }
+
+        return `
+          <div class="product-card">
+            <div>
+              <div class="product-header">
+                <span class="product-sku">${p.sku}</span>
+                <span class="stock-badge ${badgeClass}">${badgeText}</span>
+              </div>
+              <div class="product-name">${p.name}</div>
+              <div class="product-meta">
+                <span class="meta-tag">${p.brand}</span>
+                <span class="meta-tag">${p.category}</span>
+                <span class="meta-tag">Fitment: ${p.vehicle_fitment}</span>
+              </div>
+            </div>
+            <div class="product-footer">
+              <div class="product-price">₹${p.price}</div>
+              <div class="add-to-cart-group">
+                <input type="number" id="qty-${p.sku}" class="qty-input" value="1" min="1" max="99">
+                <button class="btn-add" onclick="addToCart('${p.sku}')">Add</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('catalogueSearch').addEventListener('input', debounce(loadProducts, 300));
+    document.getElementById('categoryFilter').addEventListener('change', loadProducts);
+    document.getElementById('vehicleFilter').addEventListener('change', loadProducts);
+
+    function debounce(fn, ms) {
+      let timeout;
+      return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    // Cart Operations
+    window.addToCart = function(sku) {
+      const p = state.products.find(x => x.sku === sku);
+      if (!p) return;
+      const qtyInput = document.getElementById(`qty-${sku}`);
+      const qty = parseInt(qtyInput ? qtyInput.value : 1) || 1;
+
+      const existing = state.cart.find(x => x.sku === sku);
+      if (existing) {
+        existing.quantity += qty;
+      } else {
+        state.cart.push({
+          sku: p.sku,
+          name: p.name,
+          price: parseFloat(p.price),
+          quantity: qty,
+        });
+      }
+      showToast(`Added ${qty}x ${p.sku} to cart`, 'success');
+      updateCartUI();
+    };
+
+    function updateCartUI() {
+      const badge = document.getElementById('cartCountBadge');
+      const totalUnits = state.cart.reduce((sum, item) => sum + item.quantity, 0);
+      badge.textContent = totalUnits;
+
+      const tbody = document.getElementById('cartTableBody');
+      if (state.cart.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-subtle); padding:2rem;">Your cart is empty. Add parts from the catalogue tab.</td></tr>`;
+      } else {
+        tbody.innerHTML = state.cart.map((item, idx) => {
+          const subtotal = item.price * item.quantity;
+          const tax = Math.round(subtotal * 0.18 * 100) / 100;
+          const total = subtotal + tax;
+          return `
+            <tr>
+              <td style="font-family:var(--font-mono); font-weight:600; color:var(--cyan);">${item.sku}</td>
+              <td>${item.name}</td>
+              <td style="font-family:var(--font-mono);">₹${item.price.toFixed(2)}</td>
+              <td>
+                <input type="number" class="qty-input" value="${item.quantity}" min="1" onchange="updateCartItemQty(${idx}, this.value)">
+              </td>
+              <td style="font-family:var(--font-mono);">₹${subtotal.toFixed(2)}</td>
+              <td style="font-family:var(--font-mono);">₹${tax.toFixed(2)}</td>
+              <td style="font-family:var(--font-mono); font-weight:700;">₹${total.toFixed(2)}</td>
+              <td>
+                <button class="btn-outline" style="color:var(--rose); border-color:rgba(239,68,68,0.3);" onclick="removeCartItem(${idx})">✕</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Financials
+      let subSum = 0;
+      let taxSum = 0;
+      state.cart.forEach(item => {
+        const sub = Math.round(item.price * item.quantity * 100) / 100;
+        const tx = Math.round(sub * 0.18 * 100) / 100;
+        subSum += sub;
+        taxSum += tx;
+      });
+
+      document.getElementById('summaryLinesCount').textContent = state.cart.length;
+      document.getElementById('summarySubtotal').textContent = `₹${subSum.toFixed(2)}`;
+      document.getElementById('summaryTax').textContent = `₹${taxSum.toFixed(2)}`;
+      document.getElementById('summaryGrandTotal').textContent = `₹${(subSum + taxSum).toFixed(2)}`;
+    }
+
+    window.updateCartItemQty = function(idx, val) {
+      const q = parseInt(val);
+      if (q > 0) {
+        state.cart[idx].quantity = q;
+        updateCartUI();
+      }
+    };
+
+    window.removeCartItem = function(idx) {
+      state.cart.splice(idx, 1);
+      updateCartUI();
+    };
+
+    document.getElementById('clearCartBtn').addEventListener('click', () => {
+      state.cart = [];
+      updateCartUI();
+      showToast('Cart cleared');
+    });
+
+    // Create Draft Order
+    document.getElementById('createDraftOrderBtn').addEventListener('click', async () => {
+      if (state.cart.length === 0) {
+        showToast('Cart is empty. Please add parts first.', 'error');
+        return;
+      }
+
+      const payload = {
+        dealer_id: state.dealerId,
+        items: state.cart.map(i => ({ sku: i.sku, quantity: i.quantity })),
+      };
+
+      try {
+        const res = await fetch('/api/orders/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (res.status === 201) {
+          showToast(`Draft Order ${data.order_number} created successfully!`, 'success');
+          state.cart = [];
+          updateCartUI();
+          loadOrders();
+        } else {
+          showToast(data.error?.message || 'Failed to create order', 'error');
+        }
+      } catch (e) {
+        showToast('Network error creating draft order', 'error');
+      }
+    });
+
+    // Load Orders
+    async function loadOrders() {
+      try {
+        const res = await fetch(`/api/orders/?dealer_id=${state.dealerId}`);
+        const data = await res.json();
+        state.orders = data.results || [];
+        renderOrders();
+      } catch (e) {
+        console.error('Error loading orders:', e);
+      }
+    }
+
+    function renderOrders() {
+      const tbody = document.getElementById('ordersTableBody');
+      if (state.orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-subtle); padding:2rem;">No orders found for this dealer.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = state.orders.map(o => {
+        let actionsHtml = '';
+        if (o.status === 'DRAFT') {
+          actionsHtml = `
+            <button class="btn-outline" style="color:var(--cyan); border-color:var(--cyan);" onclick="confirmOrder('${o.order_number}')">Confirm</button>
+            <button class="btn-outline" style="color:var(--rose);" onclick="cancelOrder('${o.order_number}')">Cancel</button>
+          `;
+        } else if (o.status === 'CONFIRMED') {
+          actionsHtml = `
+            <button class="btn-outline" style="color:var(--violet); border-color:var(--violet);" onclick="dispatchOrder('${o.order_number}')">Dispatch</button>
+            <button class="btn-outline" style="color:var(--rose);" onclick="cancelOrder('${o.order_number}')">Cancel</button>
+          `;
+        } else if (o.status === 'DISPATCHED') {
+          actionsHtml = `
+            <button class="btn-outline" style="color:var(--emerald); border-color:var(--emerald);" onclick="deliverOrder('${o.order_number}')">Deliver</button>
+          `;
+        } else {
+          actionsHtml = `<span style="color:var(--text-subtle); font-size:0.75rem;">Locked</span>`;
+        }
+
+        return `
+          <tr>
+            <td style="font-family:var(--font-mono); font-weight:700;">${o.order_number}</td>
+            <td><span class="order-status-badge ${o.status}">${o.status}</span></td>
+            <td>${o.items ? o.items.length : 0} items</td>
+            <td style="font-family:var(--font-mono);">₹${o.subtotal}</td>
+            <td style="font-family:var(--font-mono);">₹${o.tax_total}</td>
+            <td style="font-family:var(--font-mono); font-weight:700; color:var(--cyan);">₹${o.grand_total}</td>
+            <td><div style="display:flex; gap:0.4rem;">${actionsHtml}</div></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Order Lifecycle Actions
+    window.confirmOrder = async function(orderNumber) {
+      const alertDiv = document.getElementById('orderActionAlert');
+      alertDiv.innerHTML = '';
+
+      try {
+        const res = await fetch(`/api/orders/${orderNumber}/confirm/`, { method: 'POST' });
+        const data = await res.json();
+
+        if (res.status === 200) {
+          showToast(`Order ${orderNumber} confirmed! Stock deducted.`, 'success');
+          loadOrders();
+          loadProducts();
+        } else if (res.status === 409 && data.error?.code === 'INSUFFICIENT_STOCK') {
+          // Render detailed INSUFFICIENT_STOCK alert per contract
+          const detailsList = (data.error.details || []).map(d => `<li><strong>${d.sku}</strong>: Available = ${d.available}, Requested = ${d.requested}</li>`).join('');
+          alertDiv.innerHTML = `
+            <div class="alert-banner error">
+              <div><strong>⚠️ INSUFFICIENT STOCK: Cannot Confirm ${orderNumber}</strong></div>
+              <div>${data.error.message}</div>
+              <ul style="margin-left:1.5rem; margin-top:0.25rem;">${detailsList}</ul>
+            </div>
+          `;
+          showToast(`Insufficient stock to confirm order ${orderNumber}`, 'error');
+        } else {
+          showToast(data.error?.message || 'Error confirming order', 'error');
+        }
+      } catch (e) {
+        showToast('Network error during confirmation', 'error');
+      }
+    };
+
+    window.cancelOrder = async function(orderNumber) {
+      try {
+        const res = await fetch(`/api/orders/${orderNumber}/cancel/`, { method: 'POST' });
+        const data = await res.json();
+        if (res.status === 200) {
+          showToast(`Order ${orderNumber} cancelled. Stock restored.`, 'info');
+          loadOrders();
+          loadProducts();
+        } else {
+          showToast(data.error?.message || 'Cancel failed', 'error');
+        }
+      } catch (e) {
+        showToast('Network error during cancel', 'error');
+      }
+    };
+
+    window.dispatchOrder = async function(orderNumber) {
+      try {
+        const res = await fetch(`/api/orders/${orderNumber}/dispatch/`, { method: 'POST' });
+        if (res.status === 200) {
+          showToast(`Order ${orderNumber} dispatched!`, 'success');
+          loadOrders();
+        }
+      } catch (e) { showToast('Dispatch failed', 'error'); }
+    };
+
+    window.deliverOrder = async function(orderNumber) {
+      try {
+        const res = await fetch(`/api/orders/${orderNumber}/deliver/`, { method: 'POST' });
+        if (res.status === 200) {
+          showToast(`Order ${orderNumber} marked as delivered!`, 'success');
+          loadOrders();
+        }
+      } catch (e) { showToast('Delivery failed', 'error'); }
+    };
+
+    // AI Assistant Chat
+    document.getElementById('sendChatBtn').addEventListener('click', sendChatMessage);
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendChatMessage();
+    });
+
+    document.querySelectorAll('.prompt-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.getElementById('chatInput').value = chip.getAttribute('data-prompt');
+        sendChatMessage();
+      });
+    });
+
+    async function sendChatMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      const container = document.getElementById('chatMessages');
+      // Append user bubble
+      const userBubble = document.createElement('div');
+      userBubble.className = 'chat-bubble user';
+      userBubble.textContent = text;
+      container.appendChild(userBubble);
+
+      // Loading bubble
+      const loadingBubble = document.createElement('div');
+      loadingBubble.className = 'chat-bubble model';
+      loadingBubble.innerHTML = '<span style="color:var(--text-subtle);">Thinking and executing tool calls...</span>';
+      container.appendChild(loadingBubble);
+      container.scrollTop = container.scrollHeight;
+
+      try {
+        const res = await fetch('/api/assistant/chat/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: state.sessionId,
+            dealer_id: state.dealerId,
+            message: text,
+          }),
+        });
+        const data = await res.json();
+        loadingBubble.remove();
+
+        const modelBubble = document.createElement('div');
+        modelBubble.className = 'chat-bubble model';
+
+        let inner = `<div>${data.reply || ''}</div>`;
+
+        // Render tool calls
+        if (data.tool_calls && data.tool_calls.length > 0) {
+          inner += `<div style="margin-top:0.5rem;">`;
+          data.tool_calls.forEach(tc => {
+            inner += `<span class="tool-call-chip">🛠️ ${tc.name}(${JSON.stringify(tc.arguments)})</span> `;
+          });
+          inner += `</div>`;
+        }
+
+        // Render cited SKUs
+        if (data.cited_skus && data.cited_skus.length > 0) {
+          inner += `<div style="margin-top:0.35rem;"><span style="font-size:0.75rem; color:var(--text-subtle);">Cited SKUs:</span> `;
+          data.cited_skus.forEach(s => {
+            inner += `<span class="sku-cite-chip" onclick="jumpToSku('${s}')">${s}</span>`;
+          });
+          inner += `</div>`;
+        }
+
+        // Render actions
+        if (data.actions && data.actions.length > 0) {
+          data.actions.forEach(act => {
+            if (act.type === 'draft_order_created') {
+              inner += `<div style="margin-top:0.5rem; color:var(--emerald); font-weight:700; font-size:0.8rem;">📋 Created Draft Order: ${act.order_number}</div>`;
+            }
+          });
+        }
+
+        modelBubble.innerHTML = inner;
+        container.appendChild(modelBubble);
+        container.scrollTop = container.scrollHeight;
+      } catch (e) {
+        loadingBubble.textContent = 'Error contacting assistant service.';
+      }
+    }
+
+    window.jumpToSku = function(sku) {
+      document.querySelector('[data-tab="catalogue"]').click();
+      document.getElementById('catalogueSearch').value = sku;
+      loadProducts();
+    };
+
+    // Reorder Suggestions
+    async function loadReorderSuggestions() {
+      const tbody = document.getElementById('reorderTableBody');
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-muted);">Computing safety stocks and evaluating reorder points...</td></tr>`;
+
+      try {
+        const res = await fetch('/api/reorder-suggestions/');
+        const data = await res.json();
+        const results = data.results || [];
+
+        tbody.innerHTML = results.map(r => {
+          let statusBadge = '<span style="color:var(--emerald); font-weight:700;">Healthy</span>';
+          if (r.reorder_qty > 0 && r.current_stock === 0) {
+            statusBadge = '<span style="color:var(--rose); font-weight:700;">Stockout Critical</span>';
+          } else if (r.reorder_qty > 0) {
+            statusBadge = '<span style="color:var(--amber); font-weight:700;">Reorder Urgent</span>';
+          }
+
+          return `
+            <tr>
+              <td style="font-family:var(--font-mono); font-weight:700; color:var(--cyan); cursor:pointer;" onclick="openForecastModal('${r.sku}')">${r.sku} 📊</td>
+              <td>${r.current_stock}</td>
+              <td>${r.lead_time_weeks} wks</td>
+              <td style="font-family:var(--font-mono);">${r.lead_time_demand}</td>
+              <td style="font-family:var(--font-mono); font-weight:600;">${r.safety_stock}</td>
+              <td style="font-family:var(--font-mono); font-weight:700;">${r.reorder_point}</td>
+              <td style="font-family:var(--font-mono); font-weight:800; color:${r.reorder_qty > 0 ? 'var(--amber)' : 'var(--text-muted)'}; font-size:1rem;">
+                ${r.reorder_qty}
+              </td>
+              <td>${statusBadge}</td>
+              <td>
+                ${r.reorder_qty > 0 ? `<button class="btn-outline" style="color:var(--cyan); border-color:var(--cyan); font-size:0.75rem;" onclick="quickReorderCart('${r.sku}', ${r.reorder_qty})">+ Cart ${r.reorder_qty}</button>` : '<span style="color:var(--text-subtle);">-</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--rose);">Error loading reorder suggestions.</td></tr>`;
+      }
+    }
+
+    document.getElementById('refreshReorderBtn').addEventListener('click', loadReorderSuggestions);
+
+    window.quickReorderCart = function(sku, qty) {
+      state.cart.push({
+        sku: sku,
+        name: `Automated Reorder (${sku})`,
+        price: 500.00,
+        quantity: qty,
+      });
+      showToast(`Added ${qty}x ${sku} to cart for reorder`, 'success');
+      updateCartUI();
+      document.querySelector('[data-tab="orders"]').click();
+    };
+
+    // Forecast Modal
+    window.openForecastModal = async function(sku) {
+      document.getElementById('modalSkuTitle').textContent = `4-Week Demand Forecast — ${sku}`;
+      const tbody = document.getElementById('modalForecastTableBody');
+      tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;">Loading forecast...</td></tr>`;
+      document.getElementById('forecastModal').classList.add('open');
+
+      try {
+        const res = await fetch(`/api/forecast/${sku}/`);
+        const data = await res.json();
+        tbody.innerHTML = (data.forecast || []).map(f => `
+          <tr>
+            <td style="font-family:var(--font-mono);">${f.week_start}</td>
+            <td style="font-family:var(--font-mono); font-weight:700; color:var(--cyan);">${f.forecast_units} units</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="2" style="color:var(--rose);">Failed to load forecast</td></tr>`;
+      }
+    };
+
+    document.getElementById('closeForecastModal').addEventListener('click', () => {
+      document.getElementById('forecastModal').classList.remove('open');
+    });
+
+    // Supplier Sync
+    document.getElementById('triggerSyncBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('triggerSyncBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sync in progress (fetching pages & resolving cursors)...';
+
+      try {
+        const res = await fetch('/api/sync/supplier/', { method: 'POST' });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.textContent = '🚀 Trigger Supplier Catalog Sync (POST /api/sync/supplier/)';
+
+        if (res.status === 200) {
+          showToast('Supplier sync complete!', 'success');
+          document.getElementById('syncReportCard').style.display = 'block';
+          document.getElementById('syncCreated').textContent = data.created;
+          document.getElementById('syncUpdated').textContent = data.updated;
+          document.getElementById('syncUnchanged').textContent = data.unchanged;
+          document.getElementById('syncRejected').textContent = data.rejected ? data.rejected.length : 0;
+          document.getElementById('syncPages').textContent = data.pages_fetched;
+          document.getElementById('syncRequests').textContent = data.requests_made;
+          loadProducts();
+        } else {
+          showToast(data.error?.message || 'Sync failed', 'error');
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '🚀 Trigger Supplier Catalog Sync';
+        showToast('Network error during sync', 'error');
+      }
+    });
+
+    // Init
+    loadDealers();
+    loadProducts();
+    updateCartUI();
+  </script>
+</body>
+</html>

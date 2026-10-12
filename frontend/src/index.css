@@ -1,0 +1,22 @@
+:root {
+  --bg-base: #080B11;
+  --bg-surface: #0E131F;
+  --bg-card: #141A29;
+  --border-subtle: #1E283D;
+  --border-accent: #2D3D5E;
+  --text-main: #F3F4F6;
+  --text-muted: #9CA3AF;
+  --cyan: #00F0FF;
+  --violet: #8B5CF6;
+  --emerald: #10B981;
+  --amber: #F59E0B;
+  --rose: #EF4444;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

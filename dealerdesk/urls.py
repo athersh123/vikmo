@@ -1,9 +1,10 @@
 """URL Configuration for dealerdesk project."""
 from django.contrib import admin
 from django.urls import include, path, re_path
-from core.views import not_found_view
+from core.views import dashboard_view, not_found_view
 
 urlpatterns = [
+    path("", dashboard_view, name="dashboard"),
     path("admin/", admin.site.urls),
     path("api/", include("core.urls")),
     path("api/", include("catalog.urls")),
