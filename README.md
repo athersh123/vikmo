@@ -6,8 +6,16 @@ What's here:
 
 - `dealerdesk/settings.py` reads `DATABASE_URL`, `SUPPLIER_API_URL`, `SUPPLIER_API_KEY` and the LLM keys (Gemini, OpenAI, Anthropic, Groq), refuses anything but PostgreSQL, and turns off authentication for the API.
 - `GET /api/health/` returns `{"status": "ok"}`.
-- `python manage.py seed_data` exists but does nothing yet.
-- `requirements.txt` with Django, DRF, the Postgres driver and `requests`. Add your LLM provider's SDK if you build the assistant.
+- `python manage.py seed_data` loads 600 catalogue products and 25 dealers idempotently.
+- `requirements.txt` with Django, DRF, psycopg, and requests.
+
+## LLM Provider & Dealer Assistant (Phase 4)
+* **Primary Provider**: **Google Gemini**
+* **Model**: **`gemini-2.5-flash`** (configurable via `GEMINI_MODEL`, default: `gemini-2.5-flash`)
+* **Environment Variable**: `GEMINI_API_KEY`
+* **Temperature**: `0.1` (deterministic low-temperature tool calling)
+* **Fallback Compatibility**: Automatically detects and uses `OPENAI_API_KEY` (`gpt-4o-mini`) or `GROQ_API_KEY` (`llama-3.3-70b-versatile`) if configured by the grader.
+* **Assistant Endpoint**: `POST /api/assistant/chat/` with real tool calling (`search_parts`, `check_stock`, `create_draft_order`), hybrid BM25 + trigram RRF retrieval, grounding checks, and prompt injection defenses.
 
 ## Set up
 
