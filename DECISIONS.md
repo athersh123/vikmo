@@ -176,3 +176,60 @@ This document records the architectural decisions, database schemas, integrity c
   * *Semantic Steganography & Cipher Injections*: Highly encoded or non-English prompt injection prompts (e.g. base64, leetspeak, or recursive reasoning tricks) will bypass simple regex sanitizers.
   * *Defense-in-Depth Guarantee*: Even if an adversarial prompt circumvents the prompt sanitizer and convinces the LLM to confirm an order, the system architecture renders the injection harmless: **no confirmation tool exists in the schema**, and the server never accepts order status mutations from the assistant.
 
+---
+
+## 5. Demand Forecasting & Inventory Optimization Engine (Phase 5)
+
+### 5.1 Model Architecture & Multi-Horizon Strategy (`ml/train.py:100-145`, `ml/validate.py:150-195`)
+* **Algorithm**: Histogram-based Gradient Boosting (`sklearn.ensemble.HistGradientBoostingRegressor`) using `loss="squared_error"` trained on log1p-transformed target $\log(1 + y)$.
+* **Direct Multi-Horizon Formulation**: Trains 4 distinct models corresponding to forecast horizons $h \in \{1, 2, 3, 4\}$. Direct multi-horizon forecasting eliminates the recursive accumulation of autoregressive error over future weeks.
+* **Domain Feature Engineering (`ml/train.py:40-95`)**:
+  * Autoregressive lags: `lag1`, `lag2`, `lag4`, and seasonal `lag52` (same week last year).
+  * Rolling statistics: 4-week and 8-week rolling means and 4-week rolling standard deviations, strictly shifted by 1 week to preclude lookahead bias.
+  * Promotional signals: History `promo_flag` and known future promotion schedules from `data/promo_calendar.csv`.
+  * Pre-Diwali Festive Lift: Distance features `weeks_to_diwali`, `weeks_since_diwali`, and binary indicator `is_pre_diwali` ($1.0$ for weeks $1$ to $6$ before Diwali), computed using the shifting Hindu festival dates from `data/festival_calendar.csv` (2024: Nov 1, 2025: Oct 21, 2026: Nov 8).
+  * Metadata features: `zero_rate`, `history_len`, catalog `category_id`, `price`, and cyclical `week_of_year`.
+
+### 5.2 Specialized SKU Segment Adaptations (`ml/train.py:145-195`)
+* **Intermittent & Rare Demand SKUs (`zero_rate >= 0.40`)**:
+  * SKUs with $\ge 40\%$ zero sales weeks (e.g. `ELE-1006`, `GRP-1043`, `BRK-1088`) suffer from severe over-forecasting under standard regression.
+  * Addressed via a Syntetos-Boylan Approximation (SBA) blend:
+    $$\hat{y}_{\text{final}} = 0.6 \cdot \hat{y}_{\text{SBA}} + 0.4 \cdot \hat{y}_{\text{GBM}}$$
+* **Cold-Start New SKUs (`history_len <= 8`)**:
+  * New SKUs (`BRK-1105`, `CHN-1006`) with only 6 weeks of data shrink predictions toward the recent 4-week mean ($85\%$ recent mean $+ 15\%$ pooled model).
+* **Festive Promotion SKUs**:
+  * Normal SKUs in pre-Diwali weeks blend the gradient booster ($75\%$) with historical seasonal naive sales ($25\%$) to capture demand surges observed during the prior year's pre-Diwali window.
+
+### 5.3 Zero-Leakage Rolling-Origin Backtesting (`ml/validate.py:114-118`)
+* Evaluated across 4 rolling origins: `2026-08-24`, `2026-08-31`, `2026-07-27`, and pre-Diwali `2025-09-22`.
+* **Explicit Leakage Prevention Assertion (`ml/validate.py:116`)**:
+  ```python
+  assert train["week_start"].max() < origin, f"Leakage detected: train max week {train['week_start'].max()} >= origin {origin}"
+  ```
+  Guarantees that training sets strictly contain dates prior to the origin cutoff.
+* **Performance Benchmark Against Baselines**:
+  * **1. Last Value**: WAPE: $0.3546$, MAE: $13.71$, sMAPE: $42.95\%$
+  * **2. Recent Mean (4 Weeks)**: WAPE: $0.3052$, MAE: $11.80$, sMAPE: $43.29\%$
+  * **3. Recent Mean (8 Weeks)**: WAPE: $0.3055$, MAE: $11.81$, sMAPE: $42.52\%$
+  * **4. Seasonal Naive**: WAPE: $0.3203$, MAE: $12.38$, sMAPE: $44.62\%$
+  * **5. HistGradientBoosting + SBA**: **WAPE: $0.2538$, MAE: $9.81$, sMAPE: $38.80\%$**
+  * **Result**: The final model achieves a **$16.84\%$ relative WAPE improvement** over the best baseline ($0.3052$). Promo week WAPE improved from $0.5480$ (baseline) to $0.2788$ (**$+49.1\%$ improvement**).
+
+### 5.4 Challenging SKUs Analysis
+1. `ELE-1006` ($\text{CV}=1.47, \text{zero\_rate}=60\%$): Highly intermittent spark plug line with sporadic sales (0-4 units). SBA dampens spurious non-zero spikes.
+2. `GRP-1043` ($\text{CV}=1.33, \text{zero\_rate}=55\%$): Rare grip accessory characterized by long zero runs.
+3. `BRK-1088` ($\text{CV}=1.24, \text{zero\_rate}=52\%$): Specialized brake pad with lumpy distributor purchases.
+4. `BRK-1019` ($\text{std}=44.41, \text{max}=359$): High-volume brake component subject to massive promotional surges ($359$ units in promo vs $60$ baseline).
+5. `CHN-1006` & `BRK-1105`: Newly introduced SKUs with only 6 historical data points, requiring conservative mean shrinkage.
+
+### 5.5 Reorder Suggestions & Safety Stock Formula (`forecasting/services.py:95-170`)
+* Evaluated dynamically per request using live `Inventory.quantity` for the 40 forecast SKUs:
+  * $L = \text{lead\_time\_weeks} \in \{1, 2, 3, 4\}$ (from `data/lead_times.csv`)
+  * $\text{lead\_time\_demand} = \sum_{w=1}^L \text{forecast\_units}_w$
+  * $\sigma = \text{sample standard deviation (ddof=1) of } units\_sold \text{ over recent 12 weeks of sales}$ (all weeks if $<12$; $\sigma=0$ if 1 week)
+  * $\text{safety\_stock} = \lceil 1.65 \cdot \sigma \cdot \sqrt{L} \rceil$ (`math.ceil`)
+  * $\text{reorder\_point} = \text{lead\_time\_demand} + \text{safety\_stock}$
+  * $\text{reorder\_qty} = \max(0, \lceil \text{reorder\_point} - \text{current\_stock} \rceil)$
+* Live inventory updates through `PUT /api/inventory/{sku}/` immediately modulate `reorder_qty`.
+
+

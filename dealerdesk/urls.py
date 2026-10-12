@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/", include("orders.urls")),
     path("api/", include("supplier.urls")),
     path("api/", include("assistant.urls")),
+    path("api/", include("forecasting.urls")),
     re_path(r"^.*$", not_found_view),
 ]
 
