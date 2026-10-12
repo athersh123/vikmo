@@ -8,6 +8,7 @@ urlpatterns = [
     path("api/", include("core.urls")),
     path("api/", include("catalog.urls")),
     path("api/", include("orders.urls")),
+    path("api/", include("supplier.urls")),
     re_path(r"^.*$", not_found_view),
 ]
 

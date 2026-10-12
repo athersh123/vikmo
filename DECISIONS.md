@@ -102,3 +102,23 @@ This document records the architectural decisions, database schemas, integrity c
   ```
 * Serializes concurrent duplicate requests. The first thread creates the order and idempotency record; subsequent concurrent threads cleanly read and return the original snapshot with status `201`.
 * Reusing the same `Idempotency-Key` with a different request payload immediately raises `409 IDEMPOTENCY_CONFLICT`.
+
+---
+
+## 3. Supplier Sync Engine (Phase 3)
+
+### 3.1 HTTP Client & Resilient Ingestion (`supplier/client.py:17-115`)
+* **All-or-Nothing Fetch**: Ingestion retrieves the entire multi-page feed into memory before initiating any database transactions (`supplier/client.py:31-50`).
+* **Retry Strategy**: Each page is attempted up to 5 times:
+  * On `429 Too Many Requests`, parses the `Retry-After` header and sleeps the specified seconds before retrying the same cursor (`supplier/client.py:72-84`).
+  * On `500`, `502`, `503`, or connection/timeout exceptions, applies short exponential backoff (`supplier/client.py:86-107`).
+  * On `401 Unauthorized` or exhaustion of 5 attempts on any page, raises `SupplierUnavailableError` (`supplier/client.py:70-71, 114-115`), which translates via the centralized exception handler to HTTP `502 SUPPLIER_UNAVAILABLE` with zero database writes.
+
+### 3.2 Invalidation & Deduplication Pipeline (`supplier/sync_service.py:76-122`)
+* **Sanitization & Rejection**: Items with missing/whitespace SKUs or non-positive/malformed prices (>2 decimals, NaN, Infinity) are stripped into the `rejected` list before deduplication and database application (`supplier/sync_service.py:76-107`).
+* **Deterministic Deduplication**: Multiple occurrences of the same SKU across pages are resolved by keeping the version with the latest `updated_at` (parsed from ISO 8601 with UTC `Z`), ensuring identical results regardless of page arrival order (`supplier/sync_service.py:109-122`).
+
+### 3.3 Atomic Application & Stock Invariant (`supplier/sync_service.py:124-180`)
+* **Single Atomic Transaction**: Applies all additions and modifications inside `transaction.atomic()` using batch `bulk_create` and `bulk_update`.
+* **Stock Invariant**: `supplier_stock` is completely ignored. New products are created with local `Inventory.quantity = 0`; existing product inventory records are untouched (`supplier/sync_service.py:166-173`).
+* **Idempotency Guarantee**: A second run against an unchanged feed returns `{"created": 0, "updated": 0, "unchanged": N}` and issues zero database write operations (`supplier/sync_service.py:157-175`).
